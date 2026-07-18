@@ -2,12 +2,8 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 
 metadata:
-  name: hotel-ingress
+  name: frontend-ingress
   namespace: hotel-project
-
-  annotations:
-    nginx.ingress.kubernetes.io/use-regex: "true"
-    nginx.ingress.kubernetes.io/rewrite-target: /$2
 
 spec:
   ingressClassName: nginx
@@ -27,14 +23,3 @@ spec:
 
                 port:
                   number: 80
-
-
-          - path: /api(/|$)(.*)
-            pathType: ImplementationSpecific
-
-            backend:
-              service:
-                name: backend-service
-
-                port:
-                  number: 5000
