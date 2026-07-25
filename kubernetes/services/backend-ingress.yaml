@@ -27,3 +27,13 @@ spec:
 
                 port:
                   number: 5000
+
+          - path: /mongo(/|$)(.*)
+            pathType: ImplementationSpecific
+
+            backend:
+              service:
+                name: mongo-express-service
+
+                port:
+                  number: 8081
