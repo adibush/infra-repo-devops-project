@@ -2,7 +2,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 
 metadata:
-  name: hotel-backend
+  name: hotel-frontend
   namespace: argocd
 
 spec:
@@ -11,7 +11,10 @@ spec:
   source:
     repoURL: https://github.com/adibush/infra-repo-devops-project.git
     targetRevision: main
-    path: kubernetes/backend
+    path: kubernetes
+    directory:
+      recurse: true
+      include: "{deployments/frontend-deployment.yaml,services/frontend-service.yaml,services/frontend-ingress.yaml}"
 
   destination:
     server: https://kubernetes.default.svc
