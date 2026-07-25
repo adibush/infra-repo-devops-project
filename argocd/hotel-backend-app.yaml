@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+
+metadata:
+  name: hotel-backend
+  namespace: argocd
+
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/adibush/infra-repo-devops-project.git
+    targetRevision: main
+    path: kubernetes/backend
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: hotel-project
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+
+    syncOptions:
+      - CreateNamespace=true
