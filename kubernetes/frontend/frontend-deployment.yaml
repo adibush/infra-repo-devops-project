@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: frontend-deployment
+  namespace: hotel-project
+
+spec:
+  replicas: 5
+
+  selector:
+    matchLabels:
+      app: frontend
+
+  template:
+    metadata:
+      labels:
+        app: frontend
+
+    spec:
+      containers:
+        - name: frontend
+
+          image: adibush/hotel-frontend:d5bde7a2e46d1b5023489d0b4d6fee286822ab76
+
+          imagePullPolicy: Always
+
+          ports:
+            - containerPort: 80
