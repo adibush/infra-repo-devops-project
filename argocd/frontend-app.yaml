@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+
+metadata:
+  name: hotel-frontend
+  namespace: argocd
+
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/adibush/infra-repo-devops-project.git
+    targetRevision: main
+    path: kubernetes
+    directory:
+      recurse: true
+      include: "{deployments/frontend-deployment.yaml,services/frontend-service.yaml,services/frontend-ingress.yaml}"
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: hotel-project
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+
+    syncOptions:
+      - CreateNamespace=true

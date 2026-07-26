@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+
+metadata:
+  name: hotel-backend
+  namespace: argocd
+
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/adibush/infra-repo-devops-project.git
+    targetRevision: main
+    path: kubernetes
+    directory:
+      recurse: true
+      include: "{configmaps/namespace.yaml,configmaps/backend-config.yaml,secrets/mongodb-secret.yaml,secrets/mongodb-keyfile-secret.yaml,deployments/backend-deployment.yaml,deployments/mongo-express-deployment.yaml,deployments/mongodb-init-replica-set-job.yaml,statefulsets/mongodb-statefulset.yaml,services/backend-service.yaml,services/mongodb-service.yaml,services/mongodb-headless-service.yaml,services/mongo-express-service.yaml,services/backend-ingress.yaml,services/mongo-express-ingress.yaml}"
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: hotel-project
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+
+    syncOptions:
+      - CreateNamespace=true

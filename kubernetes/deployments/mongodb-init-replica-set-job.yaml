@@ -1,0 +1,105 @@
+apiVersion: batch/v1
+kind: Job
+
+metadata:
+  name: mongodb-init-replica-set
+  namespace: hotel-project
+
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+
+spec:
+  backoffLimit: 6
+
+  template:
+    spec:
+      restartPolicy: OnFailure
+
+      containers:
+        - name: mongodb-init-replica-set
+
+          image: mongo:8.0
+
+          imagePullPolicy: IfNotPresent
+
+          env:
+            - name: MONGO_INITDB_ROOT_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-secret
+                  key: MONGO_INITDB_ROOT_USERNAME
+
+            - name: MONGO_INITDB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-secret
+                  key: MONGO_INITDB_ROOT_PASSWORD
+
+          command:
+            - bash
+            - -c
+
+          args:
+            - |
+              set -e
+
+              PRIMARY_HOST="mongodb-0.mongodb-headless-service.hotel-project.svc.cluster.local:27017"
+              SECONDARY_HOST_1="mongodb-1.mongodb-headless-service.hotel-project.svc.cluster.local:27017"
+              SECONDARY_HOST_2="mongodb-2.mongodb-headless-service.hotel-project.svc.cluster.local:27017"
+
+              wait_for_mongo() {
+                local host="$1"
+
+                until mongosh --host "$host" \
+                  -u "$MONGO_INITDB_ROOT_USERNAME" \
+                  -p "$MONGO_INITDB_ROOT_PASSWORD" \
+                  --authenticationDatabase admin \
+                  --quiet \
+                  --eval 'db.adminCommand({ ping: 1 }).ok' | grep 1; do
+                  echo "Waiting for $host"
+                  sleep 5
+                done
+              }
+
+              wait_for_mongo "$PRIMARY_HOST"
+              wait_for_mongo "$SECONDARY_HOST_1"
+              wait_for_mongo "$SECONDARY_HOST_2"
+
+              REPLICA_SET_STATUS="$(mongosh --host "$PRIMARY_HOST" \
+                -u "$MONGO_INITDB_ROOT_USERNAME" \
+                -p "$MONGO_INITDB_ROOT_PASSWORD" \
+                --authenticationDatabase admin \
+                --quiet \
+                --eval 'try { rs.status().ok } catch (error) { 0 }')"
+
+              if [ "$REPLICA_SET_STATUS" = "1" ]; then
+                echo "Replica Set rs0 is already initialized"
+                exit 0
+              fi
+
+              mongosh --host "$PRIMARY_HOST" \
+                -u "$MONGO_INITDB_ROOT_USERNAME" \
+                -p "$MONGO_INITDB_ROOT_PASSWORD" \
+                --authenticationDatabase admin \
+                --quiet \
+                --eval "rs.initiate({
+                  _id: 'rs0',
+                  members: [
+                    { _id: 0, host: '$PRIMARY_HOST', priority: 2 },
+                    { _id: 1, host: '$SECONDARY_HOST_1', priority: 1 },
+                    { _id: 2, host: '$SECONDARY_HOST_2', priority: 1 }
+                  ]
+                })"
+
+              until mongosh --host "$PRIMARY_HOST" \
+                -u "$MONGO_INITDB_ROOT_USERNAME" \
+                -p "$MONGO_INITDB_ROOT_PASSWORD" \
+                --authenticationDatabase admin \
+                --quiet \
+                --eval 'rs.status().members.filter((member) => member.stateStr === "PRIMARY").length === 1 && rs.status().members.filter((member) => member.stateStr === "SECONDARY").length === 2' | grep true; do
+                echo "Waiting for Replica Set rs0 to become healthy"
+                sleep 5
+              done
+
+              echo "Replica Set rs0 initialized successfully"

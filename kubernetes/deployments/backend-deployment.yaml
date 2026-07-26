@@ -41,11 +41,29 @@ spec:
                   name: backend-config
                   key: MONGO_PORT
 
+            - name: MONGO_HOSTS
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-config
+                  key: MONGO_HOSTS
+
             - name: DATABASE_NAME
               valueFrom:
                 configMapKeyRef:
                   name: backend-config
                   key: DATABASE_NAME
+
+            - name: MONGO_REPLICA_SET
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-config
+                  key: MONGO_REPLICA_SET
+
+            - name: MONGO_AUTH_SOURCE
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-config
+                  key: MONGO_AUTH_SOURCE
 
             - name: MONGO_USERNAME
               valueFrom:

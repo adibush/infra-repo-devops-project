@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+
+metadata:
+  name: backend-config
+  namespace: hotel-project
+
+data:
+  MONGO_HOST: mongodb-service
+  MONGO_HOSTS: mongodb-0.mongodb-headless-service:27017,mongodb-1.mongodb-headless-service:27017,mongodb-2.mongodb-headless-service:27017
+  MONGO_PORT: "27017"
+  DATABASE_NAME: hotel_db
+  MONGO_REPLICA_SET: rs0
+  MONGO_AUTH_SOURCE: admin
