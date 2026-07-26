@@ -26,9 +26,6 @@ spec:
 
           imagePullPolicy: IfNotPresent
 
-          command:
-            - mongod
-
           args:
             - --replSet
             - rs0

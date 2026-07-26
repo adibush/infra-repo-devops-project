@@ -48,15 +48,19 @@ spec:
               SECONDARY_HOST_1="mongodb-1.mongodb-headless-service.hotel-project.svc.cluster.local:27017"
               SECONDARY_HOST_2="mongodb-2.mongodb-headless-service.hotel-project.svc.cluster.local:27017"
 
+              mongo_eval() {
+                local host="$1"
+                local script="$2"
+
+                mongosh "mongodb://$MONGO_INITDB_ROOT_USERNAME:$MONGO_INITDB_ROOT_PASSWORD@$host/admin?directConnection=true&authSource=admin" \
+                  --quiet \
+                  --eval "$script"
+              }
+
               wait_for_mongo() {
                 local host="$1"
 
-                until mongosh --host "$host" \
-                  -u "$MONGO_INITDB_ROOT_USERNAME" \
-                  -p "$MONGO_INITDB_ROOT_PASSWORD" \
-                  --authenticationDatabase admin \
-                  --quiet \
-                  --eval 'db.adminCommand({ ping: 1 }).ok' | grep 1; do
+                until mongo_eval "$host" 'db.adminCommand({ ping: 1 }).ok' | grep 1; do
                   echo "Waiting for $host"
                   sleep 5
                 done
@@ -66,22 +70,14 @@ spec:
               wait_for_mongo "$SECONDARY_HOST_1"
               wait_for_mongo "$SECONDARY_HOST_2"
 
-              REPLICA_SET_STATUS="$(mongosh --host "$PRIMARY_HOST" \
-                -u "$MONGO_INITDB_ROOT_USERNAME" \
-                -p "$MONGO_INITDB_ROOT_PASSWORD" \
-                --authenticationDatabase admin \
-                --quiet \
-                --eval 'try { rs.status().ok } catch (error) { 0 }')"
+              REPLICA_SET_STATUS="$(mongo_eval "$PRIMARY_HOST" 'try { rs.status().ok } catch (error) { 0 }')"
 
               if [ "$REPLICA_SET_STATUS" = "1" ]; then
                 echo "Replica Set rs0 is already initialized"
                 exit 0
               fi
 
-              mongosh --host "$PRIMARY_HOST" \
-                -u "$MONGO_INITDB_ROOT_USERNAME" \
-                -p "$MONGO_INITDB_ROOT_PASSWORD" \
-                --authenticationDatabase admin \
+              mongosh "mongodb://$MONGO_INITDB_ROOT_USERNAME:$MONGO_INITDB_ROOT_PASSWORD@$PRIMARY_HOST/admin?directConnection=true&authSource=admin" \
                 --quiet \
                 --eval "rs.initiate({
                   _id: 'rs0',
@@ -92,10 +88,7 @@ spec:
                   ]
                 })"
 
-              until mongosh --host "$PRIMARY_HOST" \
-                -u "$MONGO_INITDB_ROOT_USERNAME" \
-                -p "$MONGO_INITDB_ROOT_PASSWORD" \
-                --authenticationDatabase admin \
+              until mongosh "mongodb://$MONGO_INITDB_ROOT_USERNAME:$MONGO_INITDB_ROOT_PASSWORD@$PRIMARY_HOST/admin?replicaSet=rs0&authSource=admin" \
                 --quiet \
                 --eval 'rs.status().members.filter((member) => member.stateStr === "PRIMARY").length === 1 && rs.status().members.filter((member) => member.stateStr === "SECONDARY").length === 2' | grep true; do
                 echo "Waiting for Replica Set rs0 to become healthy"
