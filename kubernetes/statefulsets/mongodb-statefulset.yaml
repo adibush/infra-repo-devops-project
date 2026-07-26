@@ -77,6 +77,14 @@ spec:
                   name: mongodb-secret
                   key: MONGO_INITDB_ROOT_PASSWORD
 
+          startupProbe:
+            tcpSocket:
+              port: 27017
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 60
+
           readinessProbe:
             tcpSocket:
               port: 27017
