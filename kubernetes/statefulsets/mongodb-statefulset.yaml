@@ -19,6 +19,32 @@ spec:
         app: mongodb-replica
 
     spec:
+      initContainers:
+        - name: prepare-mongodb-keyfile
+
+          image: mongo:8.0
+
+          imagePullPolicy: IfNotPresent
+
+          command:
+            - bash
+            - -c
+
+          args:
+            - |
+              set -e
+              cp /keyfile-source/mongodb-keyfile /keyfile/mongodb-keyfile
+              chown 999:999 /keyfile/mongodb-keyfile
+              chmod 400 /keyfile/mongodb-keyfile
+
+          volumeMounts:
+            - name: mongodb-keyfile-secret
+              mountPath: /keyfile-source
+              readOnly: true
+
+            - name: mongodb-keyfile
+              mountPath: /keyfile
+
       containers:
         - name: mongodb
 
@@ -77,6 +103,9 @@ spec:
 
       volumes:
         - name: mongodb-keyfile
+          emptyDir: {}
+
+        - name: mongodb-keyfile-secret
           secret:
             secretName: mongodb-keyfile-secret
             defaultMode: 0400
