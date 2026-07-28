@@ -59,8 +59,10 @@ spec:
 
               wait_for_mongo() {
                 local host="$1"
+                local host_without_port="${host%:*}"
+                local port="${host##*:}"
 
-                until mongo_eval "$host" 'db.adminCommand({ ping: 1 }).ok' | grep 1; do
+                until timeout 5 bash -c "</dev/tcp/$host_without_port/$port"; do
                   echo "Waiting for $host"
                   sleep 5
                 done
