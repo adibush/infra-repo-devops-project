@@ -52,7 +52,7 @@ spec:
                 local host="$1"
                 local script="$2"
 
-                mongosh "mongodb://$MONGO_INITDB_ROOT_USERNAME:$MONGO_INITDB_ROOT_PASSWORD@$host/admin?directConnection=true&authSource=admin" \
+                timeout 20 mongosh "mongodb://$MONGO_INITDB_ROOT_USERNAME:$MONGO_INITDB_ROOT_PASSWORD@$host/admin?directConnection=true&authSource=admin" \
                   --quiet \
                   --eval "$script"
               }
@@ -79,7 +79,7 @@ spec:
                 exit 0
               fi
 
-              mongosh "mongodb://$MONGO_INITDB_ROOT_USERNAME:$MONGO_INITDB_ROOT_PASSWORD@$PRIMARY_HOST/admin?directConnection=true&authSource=admin" \
+              timeout 30 mongosh "mongodb://$MONGO_INITDB_ROOT_USERNAME:$MONGO_INITDB_ROOT_PASSWORD@$PRIMARY_HOST/admin?directConnection=true&authSource=admin" \
                 --quiet \
                 --eval "rs.initiate({
                   _id: 'rs0',
@@ -90,7 +90,7 @@ spec:
                   ]
                 })"
 
-              until mongosh "mongodb://$MONGO_INITDB_ROOT_USERNAME:$MONGO_INITDB_ROOT_PASSWORD@$PRIMARY_HOST/admin?replicaSet=rs0&authSource=admin" \
+              until timeout 20 mongosh "mongodb://$MONGO_INITDB_ROOT_USERNAME:$MONGO_INITDB_ROOT_PASSWORD@$PRIMARY_HOST/admin?directConnection=true&authSource=admin" \
                 --quiet \
                 --eval 'rs.status().members.filter((member) => member.stateStr === "PRIMARY").length === 1 && rs.status().members.filter((member) => member.stateStr === "SECONDARY").length === 2' | grep true; do
                 echo "Waiting for Replica Set rs0 to become healthy"
