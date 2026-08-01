@@ -1,141 +1,108 @@
 # Hotel Reservation System Architecture
 
-This diagram shows the complete DevOps flow: source code, CI pipelines, Docker images, GitOps deployment with ArgoCD, and the running Kubernetes application.
+This file explains the project architecture in a simple way.
+
+The project has three main parts:
+
+- Application code: frontend and backend repositories
+- Infrastructure code: Kubernetes and ArgoCD manifests
+- Kubernetes cluster: the running application
+
+## Simple DevOps Flow
 
 ```mermaid
-flowchart LR
+flowchart TD
+    dev["Developer pushes code to dev branch"]
+    actions["GitHub Actions<br/>Build Docker image"]
+    dockerhub["Docker Hub<br/>Stores frontend and backend images"]
+    infra["Infrastructure Repository<br/>Kubernetes YAML files<br/>main branch"]
+    argocd["ArgoCD<br/>Watches infra repository"]
+    cluster["Kubernetes Cluster<br/>Runs the project"]
+
+    dev --> actions
+    actions --> dockerhub
+    actions --> infra
+    infra --> argocd
+    argocd --> cluster
+```
+
+## Running Application
+
+```mermaid
+flowchart TD
     user["User Browser<br/>http://localhost"]
+    ingress["NGINX Ingress"]
 
-    subgraph source["GitHub Private Repositories"]
-        direction TB
-        frontendRepo["frontend-repo-devops-project<br/>Frontend source code"]
-        backendRepo["backend-repo-devops-project<br/>Backend source code"]
-        infraRepo["infra-repo-devops-project<br/>Kubernetes manifests<br/>Source of truth"]
-    end
+    frontend["Frontend<br/>5 replicas"]
+    backend["Backend Flask API<br/>5 replicas"]
+    mongoExpress["Mongo Express<br/>Database UI"]
 
-    subgraph ci["GitHub Actions CI/CD"]
-        direction TB
-        frontendPipeline1["Frontend Pipeline 1<br/>Build Docker image<br/>Push to Docker Hub"]
-        backendPipeline1["Backend Pipeline 1<br/>Build Docker image<br/>Push to Docker Hub"]
-        frontendPipeline2["Frontend Pipeline 2<br/>Update frontend image tag<br/>Open and merge PR to infra main"]
-        backendPipeline2["Backend Pipeline 2<br/>Update backend image tag<br/>Open and merge PR to infra main"]
-    end
-
-    dockerHub["Docker Hub<br/>adibush/hotel-frontend<br/>adibush/hotel-backend"]
-
-    subgraph argocd["argocd Namespace"]
-        direction TB
-        argocdController["ArgoCD<br/>Watches infra-repo main"]
-        frontendApp["Application<br/>hotel-frontend"]
-        backendApp["Application<br/>hotel-backend"]
-    end
-
-    subgraph cluster["Docker Desktop Kubernetes Cluster"]
-        direction TB
-        ingress["NGINX Ingress Controller<br/>Routes localhost traffic"]
-
-        subgraph hotel["hotel-project Namespace"]
-            direction TB
-
-            subgraph appLayer["Application Layer"]
-                direction LR
-                frontend["Frontend Deployment<br/>5 replicas<br/>nginx"]
-                backend["Backend Deployment<br/>5 replicas<br/>Flask API"]
-                mongoExpress["Mongo Express<br/>Database UI"]
-            end
-
-            subgraph configLayer["Configuration"]
-                direction LR
-                backendConfig["ConfigMap<br/>backend-config"]
-                mongodbSecret["Secret<br/>mongodb-secret"]
-                keyfileSecret["Secret<br/>mongodb-keyfile-secret"]
-            end
-
-            subgraph dataLayer["Data Layer"]
-                direction TB
-                mongoService["MongoDB Services<br/>mongodb-service<br/>mongodb-headless-service"]
-
-                subgraph replicaSet["MongoDB StatefulSet<br/>Replica Set rs0"]
-                    direction LR
-                    mongo0["mongodb-0<br/>PRIMARY"]
-                    mongo1["mongodb-1<br/>SECONDARY"]
-                    mongo2["mongodb-2<br/>SECONDARY"]
-                end
-
-                pvc0["PVC<br/>mongodb-data-mongodb-0"]
-                pvc1["PVC<br/>mongodb-data-mongodb-1"]
-                pvc2["PVC<br/>mongodb-data-mongodb-2"]
-            end
-        end
-    end
-
-    frontendRepo --> frontendPipeline1
-    backendRepo --> backendPipeline1
-
-    frontendPipeline1 --> dockerHub
-    backendPipeline1 --> dockerHub
-
-    frontendPipeline1 --> frontendPipeline2
-    backendPipeline1 --> backendPipeline2
-
-    frontendPipeline2 --> infraRepo
-    backendPipeline2 --> infraRepo
-
-    infraRepo --> argocdController
-    argocdController --> frontendApp
-    argocdController --> backendApp
-
-    frontendApp --> frontend
-    backendApp --> backend
-    backendApp --> mongoExpress
-    backendApp --> mongoService
-
-    dockerHub --> frontend
-    dockerHub --> backend
+    mongodb["MongoDB StatefulSet<br/>3 replicas<br/>Replica Set rs0"]
+    pvc["Persistent Storage<br/>One PVC per MongoDB pod"]
+    config["ConfigMap<br/>Backend configuration"]
+    secret["Secrets<br/>MongoDB credentials"]
 
     user --> ingress
+
     ingress -->|"/"| frontend
     ingress -->|"/api"| backend
     ingress -->|"/mongo"| mongoExpress
 
-    backend --> backendConfig
-    backend --> mongodbSecret
-    backend --> mongoService
+    backend --> mongodb
+    mongoExpress --> mongodb
 
-    mongoExpress --> mongodbSecret
-    mongoExpress --> mongoService
+    backend --> config
+    backend --> secret
+    mongoExpress --> secret
 
-    mongoService --> mongo0
-    mongoService --> mongo1
-    mongoService --> mongo2
+    mongodb --> pvc
+```
 
-    keyfileSecret --> mongo0
-    keyfileSecret --> mongo1
-    keyfileSecret --> mongo2
+## MongoDB Replica Set
+
+```mermaid
+flowchart LR
+    backend["Backend"]
+
+    mongo0["mongodb-0<br/>PRIMARY"]
+    mongo1["mongodb-1<br/>SECONDARY"]
+    mongo2["mongodb-2<br/>SECONDARY"]
+
+    pvc0["PVC 0"]
+    pvc1["PVC 1"]
+    pvc2["PVC 2"]
+
+    backend --> mongo0
+    backend --> mongo1
+    backend --> mongo2
 
     mongo0 --> pvc0
     mongo1 --> pvc1
     mongo2 --> pvc2
 ```
 
-## Flow Explanation
+## Short Explanation
 
-1. Developers push frontend or backend changes to the `dev` branch.
-2. Pipeline 1 builds a Docker image and pushes it to Docker Hub.
-3. Pipeline 2 updates the matching Kubernetes deployment image tag in the infrastructure repository.
-4. The infrastructure repository is the GitOps source of truth.
-5. ArgoCD watches the `main` branch of the infrastructure repository.
-6. After a change is merged to `main`, ArgoCD automatically syncs the Kubernetes cluster.
-7. Users access the system through NGINX Ingress on `http://localhost`.
-8. The frontend calls the backend through `/api`.
-9. The backend connects to MongoDB Replica Set `rs0`.
-10. Mongo Express is available through `/mongo` for database inspection.
+1. The developer pushes code to the `dev` branch.
+2. GitHub Actions builds a Docker image.
+3. The image is pushed to Docker Hub.
+4. Pipeline 2 updates the Kubernetes image tag in the infrastructure repository.
+5. The change is merged to the `main` branch of the infrastructure repository.
+6. ArgoCD watches the infrastructure repository.
+7. ArgoCD applies the Kubernetes manifests to the cluster.
+8. The user accesses the application through `http://localhost`.
 
-## Important Notes
+## Main Components
 
-- Frontend and backend each run with 5 replicas.
-- MongoDB runs as a 3-member StatefulSet.
-- Each MongoDB pod has its own PVC.
-- MongoDB credentials are stored in Kubernetes Secrets.
-- Backend MongoDB host and database settings are stored in a ConfigMap.
-- ArgoCD manages deployments from Git and keeps the cluster synchronized.
+| Component | Purpose |
+| --- | --- |
+| Frontend | The HTML, CSS, and JavaScript user interface |
+| Backend | The Flask API for hotels and reservations |
+| MongoDB | Stores hotels and reservations |
+| Mongo Express | Web UI for viewing MongoDB data |
+| NGINX Ingress | Routes browser traffic to the correct service |
+| Docker Hub | Stores Docker images |
+| ArgoCD | Keeps Kubernetes synchronized with Git |
+| ConfigMap | Stores non-secret backend configuration |
+| Secret | Stores MongoDB username, password, and keyfile |
+| PVC | Stores MongoDB data permanently |

@@ -18,18 +18,18 @@ This repository is used by ArgoCD as the GitOps source of truth.
 
 ```text
 infra-repo-devops-project/
-├── argocd/
-│   ├── argocd-persistence.yaml
-│   ├── backend-app.yaml
-│   └── frontend-app.yaml
-├── kubernetes/
-│   ├── configmaps/
-│   ├── deployments/
-│   ├── secrets/
-│   ├── services/
-│   └── statefulsets/
-├── ARCHITECTURE.md
-└── README.md
+|-- argocd/
+|   |-- argocd-persistence.yaml
+|   |-- backend-app.yaml
+|   `-- frontend-app.yaml
+|-- kubernetes/
+|   |-- configmaps/
+|   |-- deployments/
+|   |-- secrets/
+|   |-- services/
+|   `-- statefulsets/
+|-- ARCHITECTURE.md
+`-- README.md
 ```
 
 ## Architecture Diagram
