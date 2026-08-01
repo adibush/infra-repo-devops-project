@@ -93,14 +93,6 @@ spec:
             timeoutSeconds: 5
             failureThreshold: 12
 
-          livenessProbe:
-            tcpSocket:
-              port: 27017
-            initialDelaySeconds: 60
-            periodSeconds: 20
-            timeoutSeconds: 5
-            failureThreshold: 6
-
           volumeMounts:
             - name: mongodb-data
               mountPath: /data/db
