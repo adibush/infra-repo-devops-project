@@ -21,7 +21,7 @@ spec:
       containers:
         - name: backend
 
-          image: adibush/hotel-backend:18228031cad2ecd41728b31cd9a0a9206e42f453
+          image: adibush/hotel-backend:89cc0ad212ae2bc63d4523fb34c88e3f5b40702e
 
           imagePullPolicy: Always
 
