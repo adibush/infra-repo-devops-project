@@ -21,7 +21,7 @@ spec:
       containers:
         - name: frontend
 
-          image: adibush/hotel-frontend:d97cf36b5f49cdc8808783b8deb0888022d82bc9
+          image: adibush/hotel-frontend:fde7d6ef3cf1d897a5ce5d5a7014503e4617ed62
 
           imagePullPolicy: Always
 
