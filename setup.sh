@@ -91,7 +91,7 @@ kubectl config use-context "kind-${CLUSTER_NAME}"
 
 log "Installing or updating Argo CD"
 kubectl create namespace "$ARGOCD_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
-kubectl apply -n "$ARGOCD_NAMESPACE" -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+kubectl apply --server-side --force-conflicts -n "$ARGOCD_NAMESPACE" -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 
 log "Waiting for Argo CD"
 wait_for_argocd
