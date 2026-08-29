@@ -30,8 +30,11 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    user["User Browser<br/>http://localhost"]
-    ingress["NGINX Ingress"]
+    user["Browser"]
+    localhost["localhost:8080"]
+    portMapping["Docker/kind port mapping"]
+    nginx["NGINX Ingress Controller"]
+    ingress["Kubernetes Ingress"]
 
     frontend["Frontend<br/>5 replicas"]
     backend["Backend Flask API<br/>5 replicas"]
@@ -42,7 +45,10 @@ flowchart TD
     config["ConfigMap<br/>Backend configuration"]
     secret["Secrets<br/>MongoDB credentials"]
 
-    user --> ingress
+    user --> localhost
+    localhost --> portMapping
+    portMapping --> nginx
+    nginx --> ingress
 
     ingress -->|"/"| frontend
     ingress -->|"/api"| backend
@@ -90,7 +96,8 @@ flowchart LR
 5. The change is merged to the `main` branch of the infrastructure repository.
 6. Argo CD watches the infrastructure repository.
 7. Argo CD applies the Kubernetes manifests to the cluster.
-8. The user accesses the application through `http://localhost`.
+8. The user accesses the application through `http://localhost:8080`.
+9. Docker/kind maps host port `8080` to the kind node's HTTP port `80`, then the NGINX Ingress Controller routes traffic through Kubernetes Ingress rules to Services and Pods. This is direct host-to-kind port mapping, not `kubectl port-forward`.
 
 ## Main Components
 

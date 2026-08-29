@@ -4,11 +4,13 @@ Kubernetes and Argo CD infrastructure for a hotel application portfolio project.
 
 ## Architecture
 
-GitHub -> GitHub Actions -> Docker images -> Argo CD -> Kubernetes -> NGINX Ingress -> Frontend / Backend -> MongoDB Replica Set
+GitHub -> GitHub Actions -> Docker images -> Argo CD -> Kubernetes -> kind port mapping -> NGINX Ingress -> Frontend / Backend -> MongoDB Replica Set
 
 The application runs in the `hotel-project` namespace. Argo CD runs in the `argocd` namespace and deploys the frontend, backend, MongoDB, Mongo Express, services, and ingress resources from this repository.
 
 MongoDB credentials and the replica set keyfile are created locally by `setup.sh` as Kubernetes Secrets. Real secret values are not stored in Git.
+
+Local browser traffic reaches the cluster through direct host-to-kind port mappings: `localhost:8080` maps to container port `80`, and `localhost:8443` maps to container port `443`. This setup does not use `kubectl port-forward`.
 
 ## Technologies
 
@@ -36,7 +38,7 @@ The setup script asks for a MongoDB root username and password, creates a local 
 Open the application:
 
 ```text
-http://localhost/
+http://localhost:8080/
 ```
 
 ## Application URLs
@@ -44,19 +46,25 @@ http://localhost/
 Frontend:
 
 ```text
-http://localhost/
+http://localhost:8080/
 ```
 
 Backend API:
 
 ```text
-http://localhost/api/
+http://localhost:8080/api/
 ```
 
 Mongo Express:
 
 ```text
-http://localhost/mongo
+http://localhost:8080/mongo
+```
+
+HTTPS, if configured:
+
+```text
+https://localhost:8443/
 ```
 
 ## Useful Commands

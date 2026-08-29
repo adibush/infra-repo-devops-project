@@ -20,6 +20,33 @@ require_tool() {
   fi
 }
 
+port_in_use() {
+  local port="$1"
+
+  netstat -ano -p tcp 2>/dev/null | awk -v port="$port" '
+    $1 ~ /^TCP/ && $4 == "LISTENING" && $2 ~ (":" port "$") {
+      found = 1
+    }
+    END {
+      exit found ? 0 : 1
+    }
+  '
+}
+
+check_host_ports() {
+  local port
+
+  require_tool netstat
+
+  for port in 8080 8443; do
+    if port_in_use "$port"; then
+      printf 'ERROR: Port %s is already in use.\n' "$port" >&2
+      printf 'Close the process using this port or choose another host port.\n' >&2
+      exit 1
+    fi
+  done
+}
+
 wait_for_argocd() {
   kubectl -n "$ARGOCD_NAMESPACE" rollout status deployment/argocd-applicationset-controller --timeout=300s
   kubectl -n "$ARGOCD_NAMESPACE" rollout status deployment/argocd-dex-server --timeout=300s
@@ -54,6 +81,8 @@ log "Creating or reusing kind cluster: ${CLUSTER_NAME}"
 if kind get clusters | grep -Fxq "$CLUSTER_NAME"; then
   printf 'Cluster %s already exists; reusing it.\n' "$CLUSTER_NAME"
 else
+  log "Checking required host ports"
+  check_host_ports
   kind create cluster --name "$CLUSTER_NAME" --config "$ROOT_DIR/kind-config.yaml"
 fi
 
@@ -159,9 +188,10 @@ cat <<'SUMMARY'
 Setup complete.
 
 Open:
-Frontend:      http://localhost/
-Mongo Express: http://localhost/mongo
-Backend API:   http://localhost/api/
+Frontend:      http://localhost:8080/
+Backend API:   http://localhost:8080/api/
+Mongo Express: http://localhost:8080/mongo
+HTTPS:         https://localhost:8443/
 
 Useful verification commands:
 kubectl get pods -n hotel-project
