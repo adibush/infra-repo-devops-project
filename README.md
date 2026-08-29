@@ -32,6 +32,12 @@ infra-repo-devops-project/
 `-- README.md
 ```
 
+## Demo Secrets & Security
+
+The Kubernetes Secrets in this repository are demo configuration only. The included MongoDB username/password and MongoDB replica-set keyfile are demo credentials used only to run this portfolio project locally. They are not personal credentials and are not connected to any production system, cloud account, GitHub account, Docker registry, or external service.
+
+These demo values are intentionally included so the project can be cloned, deployed, and tested more easily. Kubernetes Secrets and base64 encoding should not be considered secure secret storage for production. In a real production environment, manage credentials with a dedicated secret-management solution such as External Secrets, Sealed Secrets, HashiCorp Vault, AWS Secrets Manager, or another cloud secret manager, and replace the demo credentials before adapting this project for any real environment.
+
 ## Architecture Diagram
 
 The project architecture diagram is documented in:
