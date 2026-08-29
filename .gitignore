@@ -1,0 +1,2 @@
+kubernetes/secrets/mongodb-secret.yaml
+kubernetes/secrets/mongodb-keyfile-secret.yaml

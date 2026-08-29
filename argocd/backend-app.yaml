@@ -14,7 +14,7 @@ spec:
     path: kubernetes
     directory:
       recurse: true
-      include: "{configmaps/namespace.yaml,configmaps/backend-config.yaml,secrets/mongodb-secret.yaml,secrets/mongodb-keyfile-secret.yaml,deployments/backend-deployment.yaml,deployments/mongo-express-deployment.yaml,deployments/mongodb-init-replica-set-job.yaml,statefulsets/mongodb-statefulset.yaml,services/backend-service.yaml,services/mongodb-service.yaml,services/mongodb-headless-service.yaml,services/mongo-express-service.yaml,services/backend-ingress.yaml,services/mongo-express-ingress.yaml}"
+      include: "{configmaps/namespace.yaml,configmaps/backend-config.yaml,deployments/backend-deployment.yaml,deployments/mongo-express-deployment.yaml,deployments/mongodb-init-replica-set-job.yaml,statefulsets/mongodb-statefulset.yaml,services/backend-service.yaml,services/mongodb-service.yaml,services/mongodb-headless-service.yaml,services/mongo-express-service.yaml,services/backend-ingress.yaml,services/mongo-express-ingress.yaml}"
 
   destination:
     server: https://kubernetes.default.svc
@@ -27,3 +27,4 @@ spec:
 
     syncOptions:
       - CreateNamespace=true
+      - Prune=false

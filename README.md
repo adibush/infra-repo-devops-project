@@ -54,6 +54,64 @@ ArgoCD resources are deployed to:
 argocd
 ```
 
+## Kubernetes Secrets
+
+This repository contains example Secret manifests only:
+
+```text
+kubernetes/secrets/mongodb-secret.example.yaml
+kubernetes/secrets/mongodb-keyfile-secret.example.yaml
+```
+
+Real credentials must be created locally or injected securely before deployment. Do not commit real Secret manifests or credential values to Git.
+
+For local-only manifest testing, create ignored local copies from the examples and replace the placeholder values:
+
+```bash
+cp kubernetes/secrets/mongodb-secret.example.yaml kubernetes/secrets/mongodb-secret.yaml
+cp kubernetes/secrets/mongodb-keyfile-secret.example.yaml kubernetes/secrets/mongodb-keyfile-secret.yaml
+```
+
+ArgoCD does not include the real Secret filenames from Git. The workloads still expect these Secret objects to exist in the `hotel-project` namespace:
+
+```text
+mongodb-secret
+mongodb-keyfile-secret
+```
+
+Create the real Secrets manually before syncing ArgoCD, or inject them through a secure secrets workflow such as Sealed Secrets, External Secrets, or a private Git source.
+
+```bash
+kubectl create namespace hotel-project --dry-run=client -o yaml | kubectl apply -f -
+
+kubectl create secret generic mongodb-secret \
+  --namespace hotel-project \
+  --from-literal=MONGO_INITDB_ROOT_USERNAME=YOUR_MONGO_USERNAME \
+  --from-literal=MONGO_INITDB_ROOT_PASSWORD=YOUR_MONGO_PASSWORD \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+kubectl create secret generic mongodb-keyfile-secret \
+  --namespace hotel-project \
+  --from-literal=mongodb-keyfile=YOUR_MONGODB_KEYFILE \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+kubectl annotate secret mongodb-secret \
+  --namespace hotel-project \
+  argocd.argoproj.io/sync-options=Prune=false \
+  argocd.argoproj.io/compare-options=IgnoreExtraneous \
+  --overwrite
+
+kubectl annotate secret mongodb-keyfile-secret \
+  --namespace hotel-project \
+  argocd.argoproj.io/sync-options=Prune=false \
+  argocd.argoproj.io/compare-options=IgnoreExtraneous \
+  --overwrite
+```
+
+The `Prune=false` annotation protects the manually-created Secrets if they were previously managed by ArgoCD and automated pruning is enabled. The `IgnoreExtraneous` annotation prevents those manual Secrets from making the ArgoCD application appear out of sync solely because they are not in Git.
+
+The backend ArgoCD Application also sets `Prune=false` as an application sync option so removing the old Secret manifests from Git does not cause an automated prune of the live Secrets. Automated self-heal remains enabled for the resources that are still managed from Git.
+
 ## Main Components
 
 | Component | Description |
