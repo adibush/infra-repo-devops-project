@@ -6,6 +6,7 @@ APP_NAMESPACE="${APP_NAMESPACE:-hotel-project}"
 ARGOCD_NAMESPACE="${ARGOCD_NAMESPACE:-argocd}"
 INGRESS_NGINX_VERSION="${INGRESS_NGINX_VERSION:-controller-v1.12.1}"
 INGRESS_NGINX_URL="https://raw.githubusercontent.com/kubernetes/ingress-nginx/${INGRESS_NGINX_VERSION}/deploy/static/provider/kind/deploy.yaml"
+ARGOCD_INSTALL_URL="https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -48,13 +49,64 @@ check_host_ports() {
 }
 
 wait_for_argocd() {
-  kubectl -n "$ARGOCD_NAMESPACE" rollout status deployment/argocd-applicationset-controller --timeout=300s
-  kubectl -n "$ARGOCD_NAMESPACE" rollout status deployment/argocd-dex-server --timeout=300s
-  kubectl -n "$ARGOCD_NAMESPACE" rollout status deployment/argocd-notifications-controller --timeout=300s
-  kubectl -n "$ARGOCD_NAMESPACE" rollout status deployment/argocd-redis --timeout=300s
-  kubectl -n "$ARGOCD_NAMESPACE" rollout status deployment/argocd-repo-server --timeout=300s
-  kubectl -n "$ARGOCD_NAMESPACE" rollout status deployment/argocd-server --timeout=300s
-  kubectl -n "$ARGOCD_NAMESPACE" rollout status statefulset/argocd-application-controller --timeout=300s
+  kubectl -n "$ARGOCD_NAMESPACE" rollout status deployment/argocd-applicationset-controller --timeout=900s
+  kubectl -n "$ARGOCD_NAMESPACE" rollout status deployment/argocd-dex-server --timeout=900s
+  kubectl -n "$ARGOCD_NAMESPACE" rollout status deployment/argocd-notifications-controller --timeout=900s
+  kubectl -n "$ARGOCD_NAMESPACE" rollout status deployment/argocd-redis --timeout=900s
+  kubectl -n "$ARGOCD_NAMESPACE" rollout status deployment/argocd-repo-server --timeout=900s
+  kubectl -n "$ARGOCD_NAMESPACE" rollout status deployment/argocd-server --timeout=900s
+  kubectl -n "$ARGOCD_NAMESPACE" rollout status statefulset/argocd-application-controller --timeout=900s
+}
+
+is_transient_kubectl_error() {
+  local output="$1"
+
+  grep -Eiq 'Timeout|context deadline exceeded|i/o timeout|TLS handshake timeout|connection refused|connection reset|temporarily unavailable|ServiceUnavailable|Too Many Requests|InternalError|server was unable to return a response' <<<"$output"
+}
+
+argocd_core_resources_exist() {
+  kubectl get namespace "$ARGOCD_NAMESPACE" >/dev/null 2>&1 &&
+    kubectl -n "$ARGOCD_NAMESPACE" get deployment/argocd-applicationset-controller >/dev/null 2>&1 &&
+    kubectl -n "$ARGOCD_NAMESPACE" get deployment/argocd-dex-server >/dev/null 2>&1 &&
+    kubectl -n "$ARGOCD_NAMESPACE" get deployment/argocd-notifications-controller >/dev/null 2>&1 &&
+    kubectl -n "$ARGOCD_NAMESPACE" get deployment/argocd-redis >/dev/null 2>&1 &&
+    kubectl -n "$ARGOCD_NAMESPACE" get deployment/argocd-repo-server >/dev/null 2>&1 &&
+    kubectl -n "$ARGOCD_NAMESPACE" get deployment/argocd-server >/dev/null 2>&1 &&
+    kubectl -n "$ARGOCD_NAMESPACE" get statefulset/argocd-application-controller >/dev/null 2>&1
+}
+
+apply_argocd_manifest() {
+  local attempt
+  local max_attempts=3
+  local output
+
+  for attempt in $(seq 1 "$max_attempts"); do
+    if output="$(kubectl apply --server-side --force-conflicts -n "$ARGOCD_NAMESPACE" -f "$ARGOCD_INSTALL_URL" 2>&1)"; then
+      printf '%s\n' "$output"
+      break
+    fi
+
+    printf '%s\n' "$output" >&2
+
+    if ! is_transient_kubectl_error "$output"; then
+      return 1
+    fi
+
+    if [ "$attempt" -lt "$max_attempts" ]; then
+      printf 'Argo CD install attempt %s/%s hit a transient Kubernetes API error; retrying in 15 seconds.\n' "$attempt" "$max_attempts" >&2
+      sleep 15
+    elif argocd_core_resources_exist; then
+      printf 'Argo CD install command timed out, but core Argo CD workloads exist; continuing to readiness checks.\n' >&2
+    else
+      printf 'Argo CD install failed after %s attempts and core workloads are not present.\n' "$max_attempts" >&2
+      return 1
+    fi
+  done
+
+  if ! argocd_core_resources_exist; then
+    printf 'Argo CD install did not create all expected core workloads.\n' >&2
+    return 1
+  fi
 }
 
 read_secret() {
@@ -91,7 +143,7 @@ kubectl config use-context "kind-${CLUSTER_NAME}"
 
 log "Installing or updating Argo CD"
 kubectl create namespace "$ARGOCD_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
-kubectl apply --server-side --force-conflicts -n "$ARGOCD_NAMESPACE" -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+apply_argocd_manifest
 
 log "Waiting for Argo CD"
 wait_for_argocd
@@ -102,8 +154,8 @@ kubectl apply -f "$INGRESS_NGINX_URL"
 log "Waiting for NGINX Ingress Controller"
 kubectl -n ingress-nginx wait --for=condition=Ready pod \
   -l app.kubernetes.io/component=controller \
-  --timeout=300s
-kubectl -n ingress-nginx rollout status deployment/ingress-nginx-controller --timeout=300s
+  --timeout=600s
+kubectl -n ingress-nginx rollout status deployment/ingress-nginx-controller --timeout=600s
 
 log "Creating application namespace"
 kubectl create namespace "$APP_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
@@ -166,16 +218,16 @@ kubectl apply -f "$ROOT_DIR/argocd/frontend-app.yaml"
 log "Waiting for Argo CD Applications to synchronize"
 kubectl -n "$ARGOCD_NAMESPACE" wait application/hotel-backend \
   --for=jsonpath='{.status.sync.status}'=Synced \
-  --timeout=600s
+  --timeout=900s
 kubectl -n "$ARGOCD_NAMESPACE" wait application/hotel-frontend \
   --for=jsonpath='{.status.sync.status}'=Synced \
-  --timeout=600s
+  --timeout=900s
 kubectl -n "$ARGOCD_NAMESPACE" wait application/hotel-backend \
   --for=jsonpath='{.status.health.status}'=Healthy \
-  --timeout=600s
+  --timeout=900s
 kubectl -n "$ARGOCD_NAMESPACE" wait application/hotel-frontend \
   --for=jsonpath='{.status.health.status}'=Healthy \
-  --timeout=600s
+  --timeout=900s
 
 log "Waiting for hotel-project workloads"
 kubectl -n "$APP_NAMESPACE" rollout status statefulset/mongodb --timeout=600s
